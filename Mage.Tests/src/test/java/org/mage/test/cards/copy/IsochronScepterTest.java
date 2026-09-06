@@ -4,7 +4,9 @@ package org.mage.test.cards.copy;
 import mage.constants.PhaseStep;
 import mage.constants.Zone;
 import org.junit.Test;
+import org.mage.test.player.TestPlayer;
 import org.mage.test.serverside.base.CardTestPlayerBase;
+import org.mage.test.serverside.base.impl.CardTestPlayerAPIImpl.StackClause;
 
 /**
  * {@link mage.cards.i.IsochronScepter Isochron Scepter}
@@ -178,4 +180,75 @@ public class IsochronScepterTest extends CardTestPlayerBase {
         assertPermanentCount(playerB, "Silvercoat Lion", 0);
 
     }
+
+    /**
+     * https://github.com/magefree/mage/issues/13998
+     */
+    @Test
+    public void testCopyCardWithReplicate() {
+        addCard(Zone.BATTLEFIELD, playerA, "Island", 3);
+        addCard(Zone.HAND, playerA, "Isochron Scepter");
+        addCard(Zone.HAND, playerA, "Consign to Memory");
+        addCard(Zone.HAND, playerB, "Ornithopter");
+
+        castSpell(1, PhaseStep.PRECOMBAT_MAIN, playerA, "Isochron Scepter");
+        setChoice(playerA, true); // imprint
+        setChoice(playerA, "Consign to Memory");
+
+        castSpell(4, PhaseStep.PRECOMBAT_MAIN, playerB, "Ornithopter");
+        activateAbility(4, PhaseStep.PRECOMBAT_MAIN, playerA, "{2}, {T}:",
+                TestPlayer.NO_TARGET, "Ornithopter", StackClause.WHILE_ON_STACK);
+        setChoice(playerA, true); // copy imprinted card
+        setChoice(playerA, true); // cast copy
+        setChoice(playerA, true); // pay replicate {1} once
+        setChoice(playerA, false); // stop paying replicate
+        addTarget(playerA, "Ornithopter");
+        setChoice(playerA, false); // keep replicate copy target
+
+        setStrictChooseMode(true);
+        setStopAt(4, PhaseStep.END_TURN);
+        execute();
+
+        assertTappedCount("Island", true, 3);
+        assertExileCount("Consign to Memory", 1);
+        assertGraveyardCount(playerB, "Ornithopter", 1);
+    }
+    /**
+     * https://github.com/magefree/mage/issues/13758
+     */
+    @Test
+    public void testCopyCardWithReplicateAgainstChalice() {
+        addCard(Zone.BATTLEFIELD, playerA, "Island", 3);
+        addCard(Zone.HAND, playerA, "Isochron Scepter");
+        addCard(Zone.HAND, playerA, "Consign to Memory");
+        addCard(Zone.BATTLEFIELD, playerB, "Wastes", 2);
+        addCard(Zone.HAND, playerB, "Chalice of the Void");
+        addCard(Zone.HAND, playerB, "Ornithopter");
+
+        castSpell(1, PhaseStep.PRECOMBAT_MAIN, playerA, "Isochron Scepter");
+        setChoice(playerA, true); //imprint
+        setChoice(playerA, "Consign to Memory");
+
+        castSpell(2, PhaseStep.PRECOMBAT_MAIN, playerB, "Chalice of the Void");
+        setChoice(playerB, "X=1");
+
+        castSpell(4, PhaseStep.PRECOMBAT_MAIN, playerB, "Ornithopter");
+        activateAbility(4, PhaseStep.PRECOMBAT_MAIN, playerA, "{2}, {T}:",
+                TestPlayer.NO_TARGET, "Ornithopter", StackClause.WHILE_ON_STACK);
+        setChoice(playerA, true); // copy imprinted card
+        setChoice(playerA, true); // cast copy
+        setChoice(playerA, true); // pay replicate {1} once
+        setChoice(playerA, false); // stop paying replicate
+        addTarget(playerA, "Ornithopter");
+        setChoice(playerA, false); // keep replicate copy target
+
+        setStrictChooseMode(true);
+        setStopAt(4, PhaseStep.END_TURN);
+        execute();
+
+        // Chalice counters cast copy, but not the Replicate copy because it wasn't cast
+        assertGraveyardCount(playerB, "Ornithopter", 1);
+        assertPermanentCount(playerB, "Ornithopter", 0);
+    }
+
 }

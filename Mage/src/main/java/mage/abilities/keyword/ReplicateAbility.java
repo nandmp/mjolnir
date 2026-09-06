@@ -29,6 +29,7 @@ public class ReplicateAbility extends StaticAbility implements OptionalAdditiona
     private static final String reminderTextMana = "When you cast this spell, "
             + "copy it for each time you paid its replicate cost."
             + " You may choose new targets for the copies.";
+    private final UUID replicateId;
     protected OptionalAdditionalCost additionalCost;
 
     public ReplicateAbility(String manaString) {
@@ -37,20 +38,26 @@ public class ReplicateAbility extends StaticAbility implements OptionalAdditiona
 
     public ReplicateAbility(Cost cost) {
         super(Zone.STACK, null);
+        this.replicateId = UUID.randomUUID();
         this.additionalCost = new OptionalAdditionalCostImpl(keywordText, reminderTextMana, cost);
         this.additionalCost.setRepeatable(true);
         setRuleAtTheTop(true);
-        addSubAbility(new ReplicateTriggeredAbility(this.getId()));
+        addSubAbility(new ReplicateTriggeredAbility(this.replicateId));
     }
 
     protected ReplicateAbility(final ReplicateAbility ability) {
         super(ability);
-        additionalCost = ability.additionalCost;
+        this.replicateId = ability.replicateId;
+        additionalCost = ability.additionalCost.copy();
     }
 
     @Override
     public ReplicateAbility copy() {
         return new ReplicateAbility(this);
+    }
+
+    UUID getReplicateId() {
+        return replicateId;
     }
 
     @Override
@@ -169,7 +176,9 @@ class ReplicateTriggeredAbility extends TriggeredAbilityImpl {
             return false;
         }
         for (Ability ability : card.getAbilities(game)) {
-            if (!(ability instanceof ReplicateAbility) || !ability.isActivated() || ability.getId() != replicateId) {
+            if (!(ability instanceof ReplicateAbility)
+                    || !ability.isActivated()
+                    || !((ReplicateAbility) ability).getReplicateId().equals(replicateId)) {
                 continue;
             }
             for (Effect effect : this.getEffects()) {
