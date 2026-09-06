@@ -29,6 +29,12 @@ public class ReplicateAbility extends StaticAbility implements OptionalAdditiona
     private static final String reminderTextMana = "When you cast this spell, "
             + "copy it for each time you paid its replicate cost."
             + " You may choose new targets for the copies.";
+    /**
+     * link each replicate trigger to its own paid cost (multiple Hatchery Sliver grants must stay independent).
+     * originalId survives AbilityImpl.newId(), but copying a card with Isochron Scepter calls CardImpl.assignNewId() -> newOriginalId(), 
+     * replacing both IDs without updating the trigger's stored link.
+     * keep this separate key unchanged in both copy constructors so the copied cost and trigger still match.
+     */
     private final UUID replicateId;
     protected OptionalAdditionalCost additionalCost;
 
@@ -48,6 +54,10 @@ public class ReplicateAbility extends StaticAbility implements OptionalAdditiona
     protected ReplicateAbility(final ReplicateAbility ability) {
         super(ability);
         this.replicateId = ability.replicateId;
+        /**
+         * copy the activation flag and payment count, but do not share their mutable cost object.
+         * otherwise resetting replicate on a copied card/spell would also reset the original's payments.
+         */
         additionalCost = ability.additionalCost.copy();
     }
 
@@ -175,6 +185,10 @@ class ReplicateTriggeredAbility extends TriggeredAbilityImpl {
         if (card == null) {
             return false;
         }
+        /**
+         * original and copied cards share the link key, so search only the spell that caused this trigger.
+         * within that spell, match the specific replicate instance: another grant may have a different payment count.
+         */
         for (Ability ability : card.getAbilities(game)) {
             if (!(ability instanceof ReplicateAbility)
                     || !ability.isActivated()
